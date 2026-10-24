@@ -152,6 +152,82 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self._send(404, "not found", "text/plain")
 
+    # ---- minimal MCP server (streamable HTTP, JSON responses) ----
+    # Speaks just enough of the MCP spec for clients like Hermes:
+    # initialize / notifications/initialized / tools/list / tools/call.
+
+    MCP_TOOLS = [
+        {
+            "name": "fleet_status",
+            "description": ("Probe all configured fleet endpoints now and "
+                            "return up/down, latency and status codes as "
+                            "JSON."),
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "fleet_endpoints",
+            "description": "List the configured endpoints without probing.",
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+    ]
+
+    def _mcp_result(self, rpc_id, result):
+        self._send(200, json.dumps({"jsonrpc": "2.0", "id": rpc_id,
+                                    "result": result}),
+                   "application/json")
+
+    def _mcp_error(self, rpc_id, code, message):
+        self._send(200, json.dumps({"jsonrpc": "2.0", "id": rpc_id,
+                                    "error": {"code": code,
+                                              "message": message}}),
+                   "application/json")
+
+    def do_POST(self):  # noqa: N802 -- stdlib naming
+        if self.path != "/mcp":
+            self._send(404, "not found", "text/plain")
+            return
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            msg = json.loads(self.rfile.read(length) or b"{}")
+        except json.JSONDecodeError:
+            self._mcp_error(None, -32700, "parse error")
+            return
+        method, rpc_id = msg.get("method"), msg.get("id")
+        params = msg.get("params") or {}
+        if method == "initialize":
+            self._mcp_result(rpc_id, {
+                "protocolVersion": params.get("protocolVersion",
+                                              "2025-03-26"),
+                "capabilities": {"tools": {}},
+                "serverInfo": {"name": "mcp-hub-dashboard",
+                               "version": "1.0.0"}})
+        elif method in ("notifications/initialized", "initialized"):
+            self.send_response(202)
+            self.end_headers()
+        elif method == "tools/list":
+            self._mcp_result(rpc_id, {"tools": self.MCP_TOOLS})
+        elif method == "tools/call":
+            name = params.get("name")
+            cfg = load_config(CONFIG_PATH)
+            if name == "fleet_status":
+                text = json.dumps(run_probes(cfg))
+            elif name == "fleet_endpoints":
+                text = json.dumps(cfg.get("endpoints", []))
+            else:
+                self._mcp_error(rpc_id, -32602, f"unknown tool {name!r}")
+                return
+            self._mcp_result(rpc_id, {"content": [{"type": "text",
+                                                   "text": text}],
+                                      "isError": False})
+        elif method == "ping":
+            self._mcp_result(rpc_id, {})
+        else:
+            if rpc_id is None:  # notification
+                self.send_response(202)
+                self.end_headers()
+            else:
+                self._mcp_error(rpc_id, -32601, f"unknown method {method!r}")
+
 
 def main():
     ap = argparse.ArgumentParser(description="MCP Hub Dashboard")

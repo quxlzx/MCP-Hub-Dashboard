@@ -53,6 +53,20 @@ Useful flags:
   is reachable) and shows its status code.
 - `note` is displayed on the card — handy for known quirks.
 
+## MCP server mode
+
+The same port also speaks **MCP** (streamable HTTP at `/mcp`, stdlib-only —
+no pip installs). Agents that support HTTP MCP servers get two tools:
+
+- `fleet_status` — probe everything now, returns up/down + latency JSON
+- `fleet_endpoints` — list the configured endpoints without probing
+
+Register with an MCP client (e.g. Hermes):
+
+```bash
+hermes config set mcp_servers.hub-dashboard.url http://DASHBOARD_HOST:8787/mcp
+```
+
 ## Gotchas
 
 - **Loopback-only services read as DOWN.** A service bound to `127.0.0.1`
