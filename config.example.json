@@ -1,0 +1,34 @@
+{
+  "refresh_seconds": 10,
+  "timeout_seconds": 4,
+  "endpoints": [
+    {
+      "name": "MCP Core",
+      "url": "http://HUB_HOST:8090/health"
+    },
+    {
+      "name": "MCP Replica A",
+      "url": "HUB_HOST:8110",
+      "kind": "tcp"
+    },
+    {
+      "name": "Speech",
+      "url": "http://HUB_HOST:8091/health"
+    },
+    {
+      "name": "Inference Server",
+      "url": "http://INFERENCE_HOST:8080/health",
+      "note": "shows DOWN while the model is still loading (~minutes)"
+    },
+    {
+      "name": "Vision Server",
+      "url": "http://INFERENCE_HOST:8277/health"
+    },
+    {
+      "name": "Loopback-only service",
+      "url": "127.0.0.1:9999",
+      "kind": "tcp",
+      "note": "run the dashboard on the same machine, or probe via ssh"
+    }
+  ]
+}

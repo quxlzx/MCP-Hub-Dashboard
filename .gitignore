@@ -1,0 +1,5 @@
+# config.json holds your personal fleet endpoints (hosts/IPs).
+# Keep it out of git; share config.example.json instead.
+config.json
+__pycache__/
+*.pyc
